@@ -6,12 +6,14 @@
 Apprentices (3x2): pet_<species>_<0..5> – baby, young, grown, at work, cheering, asleep.
 Eggs (4x3): egg_<0..11>. Icons (4x4): ic_<name>. Decor (4x4): decor_<id>. Patches (4x4): patch_<0..15>.
 Tools (3 sheets of 4x4): tool_<hobby>. Room: room_bg with the magenta window made see-through.
-The magenta background is keyed out; each frame is cropped to its picture.
+The magenta background is flood-filled from the edges (lavender and pink fur stays), plus enclosed pure-magenta holes; each frame is cropped to its picture.
 """
 import sys
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
@@ -28,21 +30,44 @@ DECOR = ["plant", "lamp", "mannequin", "easel", "gramophone", "wheel", "yarn", "
 MAX = 320
 
 
-def key(im):
-    im = im.convert("RGBA")
-    px = im.load()
-    w, h = im.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            m = min(r, b) - g  # how magenta
-            if m > 90 and r > 170 and b > 170:
-                px[x, y] = (0, 0, 0, 0)
-            elif m > 40 and r > 150 and b > 150:
-                # a fringe: pull the pink out and fade it
-                k = min(1, (m - 40) / 50)
-                px[x, y] = (int(r - (r - g) * k), g, int(b - (b - g) * k), int(255 * (1 - k)))
-    return im
+def dist(arr):
+    """How far each pixel is from pure magenta (0 = exactly #FF00FF)."""
+    r, g, b = arr[..., 0].astype(float), arr[..., 1].astype(float), arr[..., 2].astype(float)
+    return np.sqrt((255 - r) ** 2 + g ** 2 + (255 - b) ** 2)
+
+
+def key(im, flood=True):
+    arr = np.array(im.convert("RGBA"))
+    d = dist(arr)
+    near = d < 100          # could be background (tighter than Inkling's: lavender and pink fur sit near magenta)
+    if flood:
+        lab, _ = ndimage.label(near)
+        edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+        bg = np.isin(lab, list(edge))
+        # background shut inside a shape (between an arm and a bag): pure magenta patches of some size
+        lab2, n2 = ndimage.label(d < 32)
+        if n2:
+            sizes = ndimage.sum(np.ones_like(lab2), lab2, range(n2 + 1))
+            holes = np.isin(lab2, [k for k in range(1, n2 + 1) if sizes[k] >= 25])
+            bg = bg | ndimage.binary_dilation(holes, iterations=2) & near
+    else:
+        bg = d < 110
+    alpha = arr[..., 3].astype(float)
+    alpha[bg & (d < 65)] = 0
+    fringe = bg & (d >= 65)
+    # pull the pink out of the fringe and fade it
+    k = np.clip((100 - d) / 35, 0, 1)
+    for c in (0, 2):
+        ch = arr[..., c].astype(float)
+        arr[..., c] = np.where(fringe, ch - (ch - arr[..., 1]) * k, ch).astype(np.uint8)
+    alpha = np.where(fringe, alpha * (1 - k), alpha)
+    # pixels next to the cut-out that still look pink lose their tint too
+    grown = ndimage.binary_dilation(alpha == 0, iterations=1) & (alpha > 0) & (d < 120)
+    for c in (0, 2):
+        ch = arr[..., c].astype(float)
+        arr[..., c] = np.where(grown, np.minimum(ch, arr[..., 1] + 40), ch).astype(np.uint8)
+    arr[..., 3] = alpha.astype(np.uint8)
+    return Image.fromarray(arr)
 
 
 def border_clean(cell):

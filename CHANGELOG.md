@@ -6,6 +6,14 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.0.1] - 2026-11-19
+
+- The apprentices drawn in lavender and pink (the yoga sloth first of all) no longer show holes: the background is now cut out from the edges of each picture, not by colour.
+
+<!-- tg
+Исправлено: Асана, подмастерье йоги, и другие сиреневые и розовые питомцы больше не просвечивают насквозь.
+-->
+
 ## [1.0.0] - 2026-11-19
 
 First release.

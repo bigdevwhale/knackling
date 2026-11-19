@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apprentice, egg, icon, decor, patch, tool and room pictures are looked up by name at run time; the shrinker must keep them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_launcher_fg,@drawable/pet_*,@drawable/egg_*,@drawable/ic_*,@drawable/decor_*,@drawable/patch_*,@drawable/tool_*,@drawable/room_bg" />

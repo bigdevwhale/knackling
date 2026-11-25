@@ -96,6 +96,8 @@ class Book(val hobbies: List<Hobby>, val sessions: List<Session>, val projects: 
     fun minutes(h: Hobby? = null, from: Long = Long.MIN_VALUE, to: Long = Long.MAX_VALUE): Int =
         (if (h == null) sessions else of[h.id].orEmpty()).filter { it.day in from..to }.sumOf { it.minutes }
     val week = weekStart(today)
+    /** Saturday or Sunday: a free morning. */
+    val weekend: Boolean get() = LocalDate.ofEpochDay(today).dayOfWeek.value >= 6
     fun weekMin(h: Hobby, w: Long = week) = minutes(h, w, w + 6)
     fun lastDay(h: Hobby): Long? = of[h.id]?.maxOfOrNull { it.day }
 
@@ -133,7 +135,7 @@ class Book(val hobbies: List<Hobby>, val sessions: List<Session>, val projects: 
     val sparks: Int get() = earned - s.spent
 
     // ---------- the idea of the day ----------
-    fun ideas(h: Hobby): List<Idea> = Kinds.of(h.species)?.ideas?.takeIf { !h.own } ?: Catalog.ownIdeas
+    fun ideas(h: Hobby): List<Idea> = if (h.own) Catalog.ownIdeas else Kinds.variant(h.species, h.variant)?.ideas ?: Kinds.of(h.species)?.ideas ?: Catalog.ownIdeas
     fun ideaIndex(h: Hobby): Int {
         val skip = s.ideaSkip[h.id]?.takeIf { it / 10 == today.toInt() }?.rem(10) ?: 0
         return abs(hash("${h.id}:$today") + skip) % ideas(h).size

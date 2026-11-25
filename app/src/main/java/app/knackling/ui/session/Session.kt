@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,7 @@ import app.knackling.ui.components.Icon
 import app.knackling.ui.components.Icons
 import app.knackling.ui.components.Page
 import app.knackling.ui.components.Popup
+import app.knackling.ui.journal.ProgressEditor
 import app.knackling.ui.components.Sheet
 import app.knackling.ui.components.card
 import app.knackling.ui.components.tap
@@ -194,9 +196,11 @@ fun LogPage(scr: Screen.Log, b: Book, nav: Nav) {
     var flow by rememberSaveable { mutableIntStateOf(old?.flow ?: 0) }
     var note by rememberSaveable { mutableStateOf(old?.note ?: "") }
     var photo by rememberSaveable { mutableStateOf(old?.photo ?: "") }
-    var project by rememberSaveable { mutableLongStateOf(old?.projectId ?: b.projectsOf(h).firstOrNull { it.done == 0L }?.id ?: 0L) }
+    var project by rememberSaveable { mutableLongStateOf(old?.projectId ?: b.projectsOf(h).firstOrNull { it.going }?.id ?: 0L) }
     val proj = b.projects.firstOrNull { it.id == project }
-    var progress by rememberSaveable(project) { mutableIntStateOf(proj?.progress ?: 0) }
+    // the project's progress as moved here: saved with the session
+    var progress by rememberSaveable(project) { mutableDoubleStateOf(proj?.progress ?: 0.0) }
+    var marks by rememberSaveable(project) { mutableStateOf(proj?.marks ?: "") }
     val ideaIdx = b.ideaIndex(h)
     var idea by rememberSaveable { mutableStateOf(old?.let { it.idea >= 0 } ?: scr.idea) }
     var del by remember { mutableStateOf(false) }
@@ -270,20 +274,14 @@ fun LogPage(scr: Screen.Log, b: Book, nav: Nav) {
             }
         }
         // a project
-        val open = b.projectsOf(h).filter { it.done == 0L || it.id == project }
+        val open = b.projectsOf(h).filter { it.going || it.id == project }
         Label(tr("Проект", "Project"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Chip(tr("Без проекта", "No project"), project == 0L) { project = 0L }
             open.forEach { p -> Chip(p.title, project == p.id) { project = p.id } }
             Chip("+ " + tr("новый", "new"), false) { nav.push(Screen.ProjectEdit(hobbyId = h.id)) }
         }
-        if (proj != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Text(tr("Готово на ", "Done: ") + "$progress%", style = T.smallB, modifier = Modifier.width(110.dp))
-                Slider(progress.toFloat(), { progress = (it / 5).toInt() * 5 }, valueRange = 0f..100f, modifier = Modifier.weight(1f),
-                    colors = SliderDefaults.colors(thumbColor = C.acc, activeTrackColor = C.acc, inactiveTrackColor = C.track))
-            }
-        }
+        if (proj != null) ProgressEditor(proj.copy(progress = progress, marks = marks), Modifier.padding(top = 8.dp)) { np -> progress = np.progress; marks = np.marks }
         // a photo
         Label(tr("Фото работы", "A photo of the work"))
         if (photo.isNotEmpty()) {
@@ -308,7 +306,7 @@ fun LogPage(scr: Screen.Log, b: Book, nav: Nav) {
             val gain = Grow.xp(s)
             c.write {
                 saveSession(s)
-                if (proj != null && proj.progress != progress) saveProject(proj.copy(progress = progress))
+                if (proj != null && (proj.progress != progress || proj.marks != marks)) saveProject(proj.copy(progress = progress, marks = marks))
                 if (old?.photo?.isNotEmpty() == true && old.photo != photo) Photos.delete(app, old.photo)
                 if (old == null) say(tr("+$gain опыта · ${h.name} доволен", "+$gain experience · ${h.name} is pleased"))
             }

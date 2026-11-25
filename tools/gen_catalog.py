@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
-from hobbies import GROUPS, UNITS, HOBBIES, OWN  # noqa: E402
+from hobbies import GROUPS, UNITS, HOBBIES, OWN, VARIANTS  # noqa: E402
 from ideas import IDEAS, IDEAS_OWN  # noqa: E402
 
 COLORS = {
@@ -48,7 +48,14 @@ def main():
     for k, v in HOBBIES.items():
         group, ru, en, unit, pru, pen = v[:6]
         ideas = ", ".join(f"Idea({q(a)}, {q(b)})" for a, b in IDEAS[k])
-        out.append(f"        Kind({q(k)}, {q(group)}, {q(ru)}, {q(en)}, {q(unit) if unit else 'null'}, {q(pru)}, {q(pen)}, 0x{COLORS[k]:06X}, listOf({ideas})),")
+        variants = ""
+        if k in VARIANTS:
+            vs = []
+            for i, (vid, vru, ven) in enumerate(VARIANTS[k]):
+                vi = "null" if i == 0 else "listOf(" + ", ".join(f"Idea({q(a)}, {q(b)})" for a, b in IDEAS[f"{k}:{vid}"]) + ")"
+                vs.append(f"Variant({q(vid)}, {q(vru)}, {q(ven)}, {vi})")
+            variants = ", variants = listOf(" + ", ".join(vs) + ")"
+        out.append(f"        Kind({q(k)}, {q(group)}, {q(ru)}, {q(en)}, {q(unit) if unit else 'null'}, {q(pru)}, {q(pen)}, 0x{COLORS[k]:06X}, listOf({ideas}){variants}),")
     out.append("    )")
     out.append("    val own = listOf(")
     for k, (pru, pen, _) in OWN.items():

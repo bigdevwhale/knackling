@@ -6,6 +6,22 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.1.0] - 2026-11-25
+
+- The tasks and challenges sheets can always be closed: a cross in the corner, and a strip of the screen above stays free to tap (#6).
+- Project progress can be typed in exactly, fractions too (12.5%); the slider moves by one percent, not five (#2).
+- A project can count stages instead of percent: 31 stages for a month's challenge, each ticked on its own (#4).
+- Projects can wait in the plans: a kit or a pattern for later, started with one tap (#1).
+- A hobby from the list can be taken more than once under its own name (English and Spanish), and embroidery is cross or satin stitch, with its own challenges (#3).
+- The «practise before noon» task comes only on Saturdays and Sundays (#5).
+
+<!-- tg
+Новое: прогресс проекта можно ввести точно, с дробями, или разбить проект на этапы – например, 31 день челленджа.
+Проекты можно отложить в планы: наборы и схемы на потом.
+Можно взять несколько языков, а у вышивки появилась гладь со своими затеями.
+Исправлено: меню заданий снова закрывается, а задание «до полудня» бывает только по выходным.
+-->
+
 ## [1.0.1] - 2026-11-19
 
 - The apprentices drawn in lavender and pink (the yoga sloth first of all) no longer show holes: the background is now cut out from the edges of each picture, not by colour.

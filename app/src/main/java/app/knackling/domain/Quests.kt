@@ -19,9 +19,9 @@ object Quests {
         Quest("note", false, "Оставь заметку к занятию", "Leave a note on a session", 5) { _, l -> l.any { it.note.isNotBlank() } },
         Quest("idea", false, "Возьмись за затею дня", "Take on the challenge of the day", 8) { _, l -> l.any { it.idea >= 0 } },
         Quest("two", false, "Займись двумя разными хобби", "Do two different hobbies", 8, fits = { it.active.size >= 2 }) { _, l -> l.map { it.hobbyId }.distinct().size >= 2 },
-        Quest("morning", false, "Позанимайся до полудня", "Practise before noon", 6) { b, l -> l.any { b.hourOf(it.start) < 12 } },
+        Quest("morning", false, "Позанимайся до полудня", "Practise before noon", 6, fits = { it.weekend }) { b, l -> l.any { b.hourOf(it.start) < 12 } },
         Quest("flow", false, "Поймай поток: отметь занятие «в потоке»", "Catch the flow: mark a session «in the flow»", 5) { _, l -> l.any { it.flow == 3 } },
-        Quest("project", false, "Продвинь любой проект", "Move any project on", 6, fits = { b -> b.projects.any { it.done == 0L } }) { _, l -> l.any { it.projectId > 0 } },
+        Quest("project", false, "Продвинь любой проект", "Move any project on", 6, fits = { b -> b.projects.any { it.going } }) { _, l -> l.any { it.projectId > 0 } },
         Quest("count", false, "Запиши, сколько сделано: страницы, ряды, песни", "Log how much you did: pages, rows, songs", 5) { _, l -> l.any { it.amount > 0 } },
     )
     private val weekly = listOf(

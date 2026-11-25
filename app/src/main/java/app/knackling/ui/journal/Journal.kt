@@ -31,6 +31,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +62,7 @@ import app.knackling.data.Session
 import app.knackling.domain.Book
 import app.knackling.domain.Grow
 import app.knackling.domain.count
+import app.knackling.domain.fmt2
 import app.knackling.domain.fmtDayYear
 import app.knackling.domain.relDay
 import app.knackling.domain.tr
@@ -198,13 +201,15 @@ private fun Showcase(list: List<Session>, b: Book, nav: Nav) {
 private fun Projects(b: Book, nav: Nav) {
     var choose by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize()) {
-        val going = b.projects.filter { it.done == 0L }; val done = b.projects.filter { it.done > 0 }
+        val going = b.projects.filter { it.going }; val plans = b.projects.filter { it.planned && it.done == 0L }; val done = b.projects.filter { it.done > 0 }
         item { Ghost("+ " + tr("Новый проект", "New project"), Modifier.fillMaxWidth(), small = true) { if (b.active.size == 1) nav.push(Screen.ProjectEdit(hobbyId = b.active[0].id)) else choose = true } }
         if (going.isNotEmpty()) item { Text(tr("В РАБОТЕ", "IN THE MAKING"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp)) }
         items(going, key = { it.id }) { p -> ProjectRow(p, b) { nav.push(Screen.ProjectInfo(p.id)) } }
+        if (plans.isNotEmpty()) item { Text(tr("В ПЛАНАХ", "PLANNED"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp)) }
+        items(plans, key = { it.id }) { p -> ProjectRow(p, b) { nav.push(Screen.ProjectInfo(p.id)) } }
         if (done.isNotEmpty()) item { Text(tr("ГОТОВО", "FINISHED"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp)) }
         items(done, key = { it.id }) { p -> ProjectRow(p, b) { nav.push(Screen.ProjectInfo(p.id)) } }
-        if (b.projects.isEmpty()) item { Empty(tr("Проект – то, что ты делаешь: шарф, песня, картина, книга. Отмечай прогресс после занятий.", "A project is something you're making: a scarf, a song, a painting, a book. Mark progress after sessions.")) }
+        if (b.projects.isEmpty()) item { Empty(tr("Проект – то, что ты делаешь: шарф, песня, картина, книга. Отмечай прогресс после занятий. А то, за что возьмёшься потом, можно положить в планы.", "A project is something you're making: a scarf, a song, a painting, a book. Mark progress after sessions. Things for later can wait in the plans.")) }
         item { Spacer(Modifier.height(20.dp)) }
     }
     if (choose) Popup({ choose = false }) {
@@ -223,12 +228,16 @@ fun ProjectRow(p: Project, b: Book, onClick: () -> Unit) {
         else Box(Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).background(colorOf(h).copy(alpha = .18f)), contentAlignment = Alignment.Center) { Pic(toolOf(h.species), 40.dp) }
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Text(p.title, style = T.bodyB, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(h.label + " · " + hours(b.sessions.filter { it.projectId == p.id }.sumOf { it.minutes }), style = T.tiny)
-            Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(C.track)) {
-                Box(Modifier.fillMaxWidth(if (p.done > 0) 1f else p.progress / 100f).height(6.dp).clip(RoundedCornerShape(50)).background(if (p.done > 0) C.ok else colorOf(h)))
+            if (p.planned && p.done == 0L) Text(h.label + tr(" · в планах с ", " · planned since ") + fmtDayYear(p.started), style = T.tiny)
+            else {
+                Text(h.label + " · " + hours(b.sessions.filter { it.projectId == p.id }.sumOf { it.minutes }), style = T.tiny)
+                Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)).background(C.track)) {
+                    Box(Modifier.fillMaxWidth(if (p.done > 0) 1f else (p.pct / 100).toFloat().coerceIn(0f, 1f)).height(6.dp).clip(RoundedCornerShape(50)).background(if (p.done > 0) C.ok else colorOf(h)))
+                }
             }
         }
-        Text(if (p.done > 0) "✓" else "${p.progress}%", style = T.numS.copy(color = if (p.done > 0) C.ok else C.ink), modifier = Modifier.padding(start = 10.dp))
+        Text(when { p.done > 0 -> "✓"; p.planned -> ""; p.staged -> "${p.stepsDone}/${p.steps}"; else -> pctText(p.progress) },
+            style = T.numS.copy(color = if (p.done > 0) C.ok else C.ink), modifier = Modifier.padding(start = 10.dp))
     }
 }
 
@@ -247,22 +256,21 @@ fun ProjectPage(id: Long, b: Book, nav: Nav) {
         if (cover.isNotEmpty()) Photo(cover, Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(RoundedCornerShape(12.dp)), 1200)
         else Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)).background(colorOf(h).copy(alpha = .15f)), contentAlignment = Alignment.Center) { Pic(toolOf(h.species), 110.dp) }
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pic(toolOf(h.species), 22.dp); Text(" " + h.label + tr(" · начат ", " · started ") + fmtDayYear(p.started), style = T.small)
+            Pic(toolOf(h.species), 22.dp)
+            Text(" " + h.label + (if (p.planned && p.done == 0L) tr(" · в планах с ", " · planned since ") else tr(" · начат ", " · started ")) + fmtDayYear(p.started), style = T.small)
         }
         if (p.done > 0) Text(tr("Закончен ${fmtDayYear(p.done)}", "Finished ${fmtDayYear(p.done)}"), style = T.bodyB.copy(color = C.ok))
-        else Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
-            Text("${p.progress}%", style = T.num, modifier = Modifier.width(70.dp))
-            Slider(p.progress.toFloat(), { v -> c.write { saveProject(p.copy(progress = (v / 5).toInt() * 5)) } }, valueRange = 0f..100f, modifier = Modifier.weight(1f),
-                colors = SliderDefaults.colors(thumbColor = C.acc, activeTrackColor = C.acc, inactiveTrackColor = C.track))
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        else if (!p.planned) ProgressEditor(p, Modifier.padding(top = 6.dp)) { np -> c.write { saveProject(np) } }
+        if (!p.planned || p.done > 0) Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(hours(ss.sumOf { it.minutes }) to tr("вложено", "put in"), count(ss.size, "занятие", "занятия", "занятий", "session", "sessions") to tr("на проект", "on it"),
                 ((if (p.done > 0) p.done else b.today) - p.started + 1).let { count(it.toInt(), "день", "дня", "дней", "day", "days") } to tr("от начала", "from the start")).forEach { (v, l) ->
                 Column(Modifier.weight(1f).card().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(v, style = T.smallB, maxLines = 1); Text(l, style = T.tiny) }
             }
         }
         if (p.note.isNotBlank()) Text(p.note, style = T.hand, modifier = Modifier.padding(top = 12.dp))
-        if (p.done == 0L) {
+        if (p.planned && p.done == 0L) {
+            Btn(tr("Начать сегодня", "Start today"), Modifier.fillMaxWidth().padding(top = 14.dp)) { c.write { saveProject(p.copy(planned = false, started = clock())) } }
+        } else if (p.done == 0L) {
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Ghost(tr("Записать занятие", "Log a session"), Modifier.weight(1f), small = true) { nav.push(Screen.Log(h.id)) }
@@ -280,7 +288,7 @@ fun ProjectPage(id: Long, b: Book, nav: Nav) {
             Text(tr("Работа закончена!", "The work is finished!"), style = T.h2, textAlign = TextAlign.Center)
             Text(tr("+${Grow.PROJECT} опыта для ${h.name} и 10 искр", "+${Grow.PROJECT} experience for ${h.name} and 10 sparks"), style = T.body, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
             Btn(tr("Повесить на витрину", "Hang it in the showcase"), Modifier.fillMaxWidth()) {
-                finish = false; c.write { saveProject(p.copy(done = clock(), progress = 100)) }; nav.share = "project:${p.id}"
+                finish = false; c.write { saveProject(p.copy(done = clock(), progress = 100.0)) }; nav.share = "project:${p.id}"
             }
         }
     }
@@ -298,6 +306,9 @@ fun ProjectEditPage(scr: Screen.ProjectEdit, b: Book, nav: Nav) {
     var title by rememberSaveable { mutableStateOf(old?.title ?: "") }
     var note by rememberSaveable { mutableStateOf(old?.note ?: "") }
     var photo by rememberSaveable { mutableStateOf(old?.photo ?: "") }
+    var staged by rememberSaveable { mutableStateOf(old?.staged ?: false) }
+    var steps by rememberSaveable { mutableStateOf(old?.steps?.takeIf { it > 0 }?.toString() ?: "") }
+    var planned by rememberSaveable { mutableStateOf(old?.planned ?: false) }
     var del by remember { mutableStateOf(false) }
     val shot = remember { Photos.camera(ctx) }
     val cam = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok && shot != null) Photos.take(ctx, shot.second)?.let { photo = it } }
@@ -316,9 +327,29 @@ fun ProjectEditPage(scr: Screen.ProjectEdit, b: Book, nav: Nav) {
         }
         Text(tr("ЗАМЕТКА", "NOTE"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
         Field(note, { note = it }, tr("Схема, пряжа, ссылка на урок…", "Pattern, yarn, a link to a lesson…"), single = false)
+        Text(tr("КАК СЧИТАТЬ ПРОГРЕСС", "HOW TO COUNT PROGRESS"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Chip(tr("Проценты", "Percent"), !staged) { staged = false }
+            Chip(tr("Этапы", "Stages"), staged) { staged = true }
+        }
+        if (staged) {
+            Text(tr("Например, 31 этап для челленджа на месяц: каждый день отмечаешь сделанный.", "E.g. 31 stages for a month's challenge: tick each day done."), style = T.small, modifier = Modifier.padding(top = 6.dp, bottom = 6.dp))
+            Field(steps, { steps = it.filter(Char::isDigit).take(3) }, tr("Сколько этапов", "How many stages"), number = true)
+        }
+        if (old == null || old.planned && old.done == 0L) Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(tr("Пока в планах", "Planned for later"), style = T.bodyB)
+                Text(tr("Набор, схема или идея на потом. Начнёшь, когда дойдут руки.", "A kit, a pattern or an idea for later. Start it when you get to it."), style = T.small)
+            }
+            Switch(planned, { planned = it }, colors = SwitchDefaults.colors(checkedTrackColor = C.acc))
+        }
         Spacer(Modifier.height(18.dp))
-        Btn(tr("Сохранить", "Save"), Modifier.fillMaxWidth(), enabled = title.isNotBlank()) {
-            val p = (old ?: Project(hobbyId = hid, title = "", started = c.clock())).copy(title = title.trim(), note = note.trim(), photo = photo)
+        val n = steps.toIntOrNull()?.takeIf { it > 0 }?.coerceAtMost(Project.MAX_STEPS)
+        Btn(tr("Сохранить", "Save"), Modifier.fillMaxWidth(), enabled = title.isNotBlank() && (!staged || n != null)) {
+            val base = old ?: Project(hobbyId = hid, title = "", started = c.clock())
+            val counted = if (staged) base.withSteps(n ?: 1) else if (base.staged) base.copy(progress = Math.round(base.pct * 100) / 100.0, steps = 0, marks = "") else base
+            val p = counted.copy(title = title.trim(), note = note.trim(), photo = photo, planned = planned,
+                started = if (old != null && old.planned && !planned) c.clock() else base.started)
             c.write { if (old != null && old.photo.isNotEmpty() && old.photo != photo) Photos.delete(app, old.photo); saveProject(p) }
             nav.pop()
         }
@@ -339,3 +370,45 @@ fun ProjectEditPage(scr: Screen.ProjectEdit, b: Book, nav: Nav) {
 @Composable
 fun Empty(text: String) = Text(text, style = T.body.copy(color = C.mute, textAlign = TextAlign.Center), modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = 20.dp))
 
+/** «12,5%»: a project's percent, fractions kept. */
+fun pctText(v: Double) = fmt2(v) + "%"
+
+/**
+ * A project's progress to move on: the percent (a slider by whole ones; a tap on the number types it exactly, fractions too)
+ * or its stages as numbered cells to tick.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ProgressEditor(p: Project, modifier: Modifier = Modifier, onChange: (Project) -> Unit) {
+    if (p.staged) Column(modifier.fillMaxWidth()) {
+        Text(tr("Этапов сделано: ${p.stepsDone} из ${p.steps}", "Stages done: ${p.stepsDone} of ${p.steps}"), style = T.smallB, modifier = Modifier.padding(bottom = 6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            (0 until p.steps).forEach { i ->
+                val on = p.marked(i)
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(if (on) C.acc else C.card2).border(1.dp, if (on) C.acc else C.line, RoundedCornerShape(8.dp))
+                    .tap { onChange(p.toggle(i)) }, contentAlignment = Alignment.Center) {
+                    if (on) Icon(Icons.CHECK, Color.White, 18.dp) else Text("${i + 1}", style = T.tiny)
+                }
+            }
+        }
+    } else Column(modifier.fillMaxWidth()) {
+        var typing by remember { mutableStateOf(false) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(pctText(p.progress), style = T.num, maxLines = 1, modifier = Modifier.width(104.dp).clip(RoundedCornerShape(8.dp)).tap { typing = true }.padding(vertical = 4.dp))
+            Slider(p.progress.toFloat(), { v -> onChange(p.copy(progress = Math.round(v).toDouble())) }, valueRange = 0f..100f, modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(thumbColor = C.acc, activeTrackColor = C.acc, inactiveTrackColor = C.track))
+        }
+        Text(tr("Нажми на число, чтобы ввести точно", "Tap the number to type it exactly"), style = T.tiny)
+        if (typing) {
+            var text by remember { mutableStateOf(fmt2(p.progress)) }
+            val v = text.replace(',', '.').toDoubleOrNull()?.takeIf { it in 0.0..100.0 }
+            Popup({ typing = false }) {
+                Text(tr("Сколько готово, %", "How much is done, %"), style = T.h2)
+                Field(text, { text = it.filter { ch -> ch.isDigit() || ch == ',' || ch == '.' }.take(6) }, "12,5", Modifier.padding(vertical = 12.dp), number = true, style = T.num, center = true, autoFocus = true)
+                Btn(tr("Готово", "Done"), Modifier.fillMaxWidth(), enabled = v != null) {
+                    typing = false; v?.let { onChange(p.copy(progress = Math.round(it * 100) / 100.0)) }
+                }
+            }
+        }
+    }
+}

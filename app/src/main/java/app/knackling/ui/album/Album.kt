@@ -83,7 +83,8 @@ fun AlbumScreen(b: Book, nav: Nav) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Apprentices(b: Book, nav: Nav) {
-    val mine = b.hobbies.associateBy { it.species }
+    // a species taken twice (two languages) shows its most grown apprentice
+    val mine = b.hobbies.groupBy { it.species }.mapValues { (_, l) -> l.maxBy { b.xp[it.id] ?: 0 } }
     Text(tr("Встречено ${mine.size} из ${Kinds.allSpecies.size}", "${mine.size} of ${Kinds.allSpecies.size} met"), style = T.small)
     Catalog.groups.forEach { g ->
         val list = Catalog.kinds.filter { it.group == g.id }
@@ -167,7 +168,7 @@ private fun Apron(b: Book) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SpeciesPage(id: String, b: Book, nav: Nav) {
-    val h = b.hobbies.firstOrNull { it.species == id }
+    val h = b.hobbies.filter { it.species == id }.maxByOrNull { b.xp[it.id] ?: 0 }
     val k = Kinds.of(id)
     var adopt by remember { mutableStateOf(false) }
     Page(h?.name ?: Kinds.petName(id), { nav.pop() }) {

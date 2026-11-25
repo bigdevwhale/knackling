@@ -49,7 +49,7 @@ object DemoSeed {
         // projects
         val proj = HashMap<String, Long>()
         suspend fun project(sp: String, ru1: String, en1: String, started: Int, done: Int, progress: Int, cover: String = "") {
-            proj["$sp:$ru1"] = c.dao.insert(Project(hobbyId = ids[sp]!!, title = if (ru) ru1 else en1, started = t - started, done = if (done > 0) t - done else 0, progress = progress,
+            proj["$sp:$ru1"] = c.dao.insert(Project(hobbyId = ids[sp]!!, title = if (ru) ru1 else en1, started = t - started, done = if (done > 0) t - done else 0, progress = progress.toDouble(),
                 photo = if (cover.isNotEmpty()) photo(cover) else ""))
         }
         project("embroidery", "Лис в папоротнике", "Fox in the ferns", 60, 0, 65)

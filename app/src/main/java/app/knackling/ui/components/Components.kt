@@ -9,6 +9,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -39,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -188,17 +191,24 @@ fun Popup(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
 @Composable
 fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     BackHandler(onBack = onDismiss)
-    Box(Modifier.fillMaxSize().background(Color(0x88000000)).tap(onDismiss), contentAlignment = Alignment.BottomCenter) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)).background(C.bg).tap {}.navigationBarsPadding().imePadding()
-            .verticalScroll(rememberScrollState()).padding(20.dp)) {
-            Box(Modifier.align(Alignment.CenterHorizontally).width(40.dp).height(4.dp).clip(RoundedCornerShape(50)).background(C.line))
-            Spacer(Modifier.height(12.dp)); content()
+    // a tall sheet (the tasks, many hobbies) never covers it all: a strip of dim stays above to tap, and the cross closes it too
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0x88000000)).tap(onDismiss), contentAlignment = Alignment.BottomCenter) {
+        Box(Modifier.fillMaxWidth().heightIn(max = maxHeight * .9f).clip(RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)).background(C.bg).tap {}) {
+            Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(20.dp)) {
+                Box(Modifier.align(Alignment.CenterHorizontally).width(40.dp).height(4.dp).clip(RoundedCornerShape(50)).background(C.line))
+                Spacer(Modifier.height(12.dp)); content()
+            }
+            Box(Modifier.align(Alignment.TopEnd).padding(6.dp).size(40.dp).clip(CircleShape).tap(onDismiss), contentAlignment = Alignment.Center) { Icon(Icons.CLOSE, C.mute, 20.dp) }
         }
     }
 }
 
 @Composable
-fun Field(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, number: Boolean = false, style: TextStyle = T.body, single: Boolean = true, center: Boolean = false) {
+fun Field(value: String, onChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, number: Boolean = false, style: TextStyle = T.body, single: Boolean = true, center: Boolean = false,
+          autoFocus: Boolean = false) {
+    // a field that is the whole point of its dialog takes the focus, and the keyboard comes up by itself
+    val focus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+    if (autoFocus) androidx.compose.runtime.LaunchedEffect(Unit) { kotlinx.coroutines.delay(120); runCatching { focus.requestFocus() } }
     var tv by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(value)) }
     if (tv.text != value) tv = tv.copy(text = value, selection = androidx.compose.ui.text.TextRange(value.length))
     var focused by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -206,7 +216,7 @@ fun Field(value: String, onChange: (String) -> Unit, hint: String, modifier: Mod
     androidx.compose.runtime.LaunchedEffect(focused) { if (focused && number) { kotlinx.coroutines.delay(40); tv = tv.copy(selection = androidx.compose.ui.text.TextRange(0, tv.text.length)) } }
     Box(modifier.clip(RoundedCornerShape(12.dp)).background(C.card2).padding(horizontal = 12.dp, vertical = 11.dp)) {
         if (value.isEmpty()) Text(hint, style = style.copy(color = C.mute), modifier = if (center) Modifier.fillMaxWidth() else Modifier, textAlign = if (center) TextAlign.Center else null)
-        BasicTextField(tv, { tv = it; if (it.text != value) onChange(it.text) }, modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }, textStyle = style.copy(color = C.ink, textAlign = if (center) TextAlign.Center else TextAlign.Start), singleLine = single,
+        BasicTextField(tv, { tv = it; if (it.text != value) onChange(it.text) }, modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged { focused = it.isFocused }, textStyle = style.copy(color = C.ink, textAlign = if (center) TextAlign.Center else TextAlign.Start), singleLine = single,
             keyboardOptions = if (number) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default, cursorBrush = SolidColor(C.acc))
     }
 }

@@ -40,6 +40,12 @@ UNITS = {
     "spread": ("разворот", "разворота", "разворотов", "spread", "spreads"),
 }
 
+# Kinds of one preset hobby that want their own challenges, like knitting and crochet but with one apprentice:
+# hobby id -> [(variant id, ru, en)]. The first is the main one (the hobby's own ideas); the others take IDEAS["<hobby>:<variant>"].
+VARIANTS = {
+    "embroidery": [("cross", "Вышивка крестиком", "Cross stitch"), ("satin", "Вышивка гладью", "Satin stitch")],
+}
+
 # Preset hobbies. id: (group, ru, en, unit or None, pet ru, pet en, look, signature move)
 # The pet's look follows the Wildling art (the moon cat «nightjar» is the reference): an invented, fluffy,
 # cute creature whose fur, tail or ears carry the craft.

@@ -12,9 +12,12 @@ data class Unit(val id: String, val ru1: String, val ru2: String, val ru5: Strin
 /** A challenge the apprentice suggests. {|а} is a feminine ending, filled by [Say.g]. */
 data class Idea(val ru: String, val en: String) { val text get() = Say.g(tr(ru, en)) }
 
+/** A kind of a preset hobby with the same apprentice: cross or satin stitch. [ideas] null = the hobby's own. */
+data class Variant(val id: String, val ru: String, val en: String, val ideas: List<Idea>?) { val title get() = tr(ru, en) }
+
 /** A preset hobby with its own apprentice (the pet's species id is the hobby id). */
 data class Kind(val id: String, val group: String, val ru: String, val en: String, val unit: String?, val petRu: String, val petEn: String,
-                val color: Long, val ideas: List<Idea>) {
+                val color: Long, val ideas: List<Idea>, val variants: List<Variant> = emptyList()) {
     val title get() = tr(ru, en)
     val pet get() = tr(petRu, petEn)
 }
@@ -26,6 +29,7 @@ object Kinds {
     val byId = Catalog.kinds.associateBy { it.id }
     val ownById = Catalog.own.associateBy { it.id }
     fun of(id: String): Kind? = byId[id]
+    fun variant(species: String, id: String): Variant? = if (id.isEmpty()) null else byId[species]?.variants?.firstOrNull { it.id == id }
     fun group(id: String) = Catalog.groups.first { it.id == id }
     /** The colour of a species (a preset hobby or a free apprentice). */
     fun color(species: String): Long = byId[species]?.color ?: ownById[species]?.color ?: 0xA08060

@@ -80,13 +80,13 @@ fun AddHobbyPage(b: Book, nav: Nav, onBack: () -> Unit = { nav.pop() }, onAdded:
                 list.forEach { k ->
                     val got = k.id in have
                     Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(C.card).border(1.dp, C.line, RoundedCornerShape(12.dp))
-                        .tap { if (!got) pick = k.id }.padding(vertical = 8.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        .tap { pick = k.id }.padding(vertical = 8.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(contentAlignment = Alignment.BottomEnd) {
                             Creature(k.id, 0, 64.dp)
                             Pic(toolOf(k.id), 28.dp)
                         }
                         Text(k.title, style = T.smallB.copy(textAlign = TextAlign.Center, color = if (got) C.mute else C.ink), maxLines = 2, modifier = Modifier.padding(top = 2.dp))
-                        Text(if (got) tr("уже есть", "added") else k.pet, style = T.tiny, maxLines = 1)
+                        Text(if (got) tr("ещё одно?", "one more?") else k.pet, style = T.tiny, maxLines = 1)
                     }
                 }
                 repeat((3 - list.size % 3) % 3) { Spacer(Modifier.weight(1f)) }
@@ -108,19 +108,27 @@ fun AddHobbyPage(b: Book, nav: Nav, onBack: () -> Unit = { nav.pop() }, onAdded:
             }
         }
     }
-    pick?.let { sp -> AdoptSheet(sp, if (onAdded == null) nav else null, { pick = null }) { pick = null; if (onAdded == null) nav.pop() else onAdded() } }
+    pick?.let { sp -> AdoptSheet(sp, if (onAdded == null) nav else null, { pick = null }, taken = b.hobbies.filter { it.species == sp }.map { it.label }.toSet()) {
+        pick = null; if (onAdded == null) nav.pop() else onAdded() } }
 }
 
-/** «Take this hobby»: the apprentice's name, the hobby's words for an own one, the weekly goal. */
+/**
+ * «Take this hobby»: the apprentice's name, the hobby's words for an own one, the weekly goal.
+ * A preset hobby can be taken more than once (two languages, cross and satin stitch): [taken] are the names of the ones
+ * already there, and the new one must be called differently.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, onDone: () -> Unit) {
+fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, taken: Set<String> = emptySet(), onDone: () -> Unit) {
     val c = LocalContext.current.container
     val k = Kinds.of(species)
     var name by rememberSaveable(species) { mutableStateOf(Kinds.petName(species)) }
     var title by rememberSaveable(species) { mutableStateOf("") }
     var unit by rememberSaveable(species) { mutableStateOf("") }
     var goal by rememberSaveable(species) { mutableIntStateOf(120) }
+    var variant by rememberSaveable(species) { mutableStateOf(k?.variants?.firstOrNull()?.id ?: "") }
+    val label = Hobby(species = species, title = title.trim(), name = "", since = 0, variant = variant).label
+    val again = k != null && taken.isNotEmpty()
     Sheet(onDismiss) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(96.dp).clip(CircleShape).background(C.card2), contentAlignment = Alignment.Center) { Pic(eggOf(species), 70.dp) }
@@ -134,15 +142,25 @@ fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, onDone: () -> 
             Field(title, { title = it.take(40) }, tr("например, Макраме", "e.g. Macramé"))
             Lbl(tr("Что считать, кроме минут (необязательно)", "What to count besides minutes (optional)"))
             Field(unit, { unit = it.take(20) }, tr("например, узлов", "e.g. knots"))
+        } else {
+            if (k.variants.isNotEmpty()) {
+                Lbl(tr("Какая", "Which kind"))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { k.variants.forEach { v -> Chip(v.title, variant == v.id) { variant = v.id } } }
+            }
+            Lbl(if (again) tr("Как назвать", "What to call it") else tr("Своё название (необязательно)", "Own name (optional)"))
+            Field(title, { title = it.take(40) }, if (species == "languages") tr("например, Испанский", "e.g. Spanish") else label)
+            if (again) Text((if (label in taken) tr("«$label» уже есть – назови это хобби по-другому", "«$label» is already there: give this one another name")
+                else tr("Будет отдельным хобби со своим подмастерьем и своей историей", "It will be a separate hobby with its own apprentice and history")),
+                style = T.small.copy(color = if (label in taken) C.bad else C.mute), modifier = Modifier.padding(top = 4.dp))
         }
         Lbl(tr("Имя подмастерья", "The apprentice's name"))
         Field(name, { name = it.take(24) }, Kinds.petName(species))
         Lbl(tr("Цель на неделю", "Weekly goal"))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { GOALS.forEach { g -> Chip(goalText(g), goal == g) { goal = g } } }
         Spacer(Modifier.height(18.dp))
-        Btn(tr("Взять яйцо", "Take the egg"), Modifier.fillMaxWidth(), enabled = k != null || title.isNotBlank()) {
+        Btn(tr("Взять яйцо", "Take the egg"), Modifier.fillMaxWidth(), enabled = if (k == null) title.isNotBlank() else label !in taken) {
             val h = Hobby(species = species, title = title.trim(), name = name.trim().ifBlank { Kinds.petName(species) }, since = c.clock(), goal = goal,
-                unit = if (k == null) (if (unit.isBlank()) "" else ":" + unit.trim()) else "")
+                unit = if (k == null) (if (unit.isBlank()) "" else ":" + unit.trim()) else "", variant = variant)
             c.write { val id = saveHobby(h); say(tr("${h.name} в мастерской!", "${h.name} moved in!")); if (nav != null) kotlinx.coroutines.delay(150) ; nav?.push(Screen.HobbyInfo(id)) }
             onDone()
         }
@@ -163,6 +181,7 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
     var title by rememberSaveable { mutableStateOf(h.title) }
     var goal by rememberSaveable { mutableIntStateOf(h.goal) }
     var unit by rememberSaveable { mutableStateOf(if (h.unit.startsWith(":")) h.unit.drop(1) else "") }
+    var variant by rememberSaveable { mutableStateOf(h.variant) }
     var countIt by rememberSaveable { mutableStateOf(h.unit != "-") }
     var del by remember { mutableStateOf(false) }
     val onStage = b.s.stage.contains(h.id)
@@ -174,7 +193,15 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
             Field(title, { title = it.take(40) }, tr("Название", "Name"))
             Lbl(tr("Что считать, кроме минут", "What to count besides minutes"))
             Field(unit, { unit = it.take(20) }, tr("например, узлов", "e.g. knots"))
-        } else Kinds.of(h.species)?.unit?.let { u ->
+        } else Kinds.of(h.species)?.let { k ->
+            if (k.variants.isNotEmpty()) {
+                Lbl(tr("Какая", "Which kind"))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { k.variants.forEach { v -> Chip(v.title, variant == v.id) { variant = v.id } } }
+            }
+            Lbl(tr("Своё название (необязательно)", "Own name (optional)"))
+            Field(title, { title = it.take(40) }, h.copy(title = "", variant = variant).label)
+        }
+        if (!h.own) Kinds.of(h.species)?.unit?.let { u ->
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(tr("Считать ", "Count ") + (Catalog.units[u]?.many ?: u), style = T.bodyB, modifier = Modifier.weight(1f))
                 Switch(countIt, { countIt = it }, colors = SwitchDefaults.colors(checkedTrackColor = C.acc))
@@ -192,7 +219,7 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
         }
         Spacer(Modifier.height(18.dp))
         Btn(tr("Сохранить", "Save"), Modifier.fillMaxWidth()) {
-            c.write { saveHobby(h.copy(name = name.trim().ifBlank { h.name }, title = if (h.own) title.trim().ifBlank { h.title } else "", goal = goal,
+            c.write { saveHobby(h.copy(name = name.trim().ifBlank { h.name }, title = if (h.own) title.trim().ifBlank { h.title } else title.trim(), goal = goal, variant = variant,
                 unit = if (h.own) (if (unit.isBlank()) "" else ":" + unit.trim()) else if (countIt) "" else "-")) }
             nav.pop()
         }

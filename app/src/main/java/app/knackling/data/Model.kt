@@ -32,6 +32,7 @@ data class Hobby(
     val archived: Boolean = false,
     val shiny: Boolean = false,
     val variant: String = "",    // a preset hobby's kind of it («satin» embroidery), "" the main one
+    val icon: String = "",       // an own hobby's picture (one of OWN_ICONS), "" the gear
 ) {
     val own get() = species.startsWith("own_")
     /** «Гитара», «Вышивка гладью» or the user's own words («Испанский» for a second «Languages»). */
@@ -118,12 +119,12 @@ interface Shop {
     @Insert suspend fun insertProjects(l: List<Project>)
 }
 
-@Database(entities = [Hobby::class, Session::class, Project::class], version = 2, exportSchema = true)
+@Database(entities = [Hobby::class, Session::class, Project::class], version = 3, exportSchema = true)
 abstract class Db : RoomDatabase() {
     abstract fun dao(): Shop
 
     companion object {
-        fun create(ctx: Context) = Room.databaseBuilder(ctx, Db::class.java, "knackling.db").addMigrations(V2).build()
+        fun create(ctx: Context) = Room.databaseBuilder(ctx, Db::class.java, "knackling.db").addMigrations(V2, V3).build()
 
         /** 1.1: a hobby's variant; a project's fractional progress (the column becomes REAL), stages and plans. */
         val V2 = object : Migration(1, 2) {
@@ -135,6 +136,10 @@ abstract class Db : RoomDatabase() {
                 db.execSQL("DROP TABLE `Project`")
                 db.execSQL("ALTER TABLE `Project_new` RENAME TO `Project`")
             }
+        }
+        /** 1.2: an own hobby's picture, so that two own hobbies look different. */
+        val V3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) { db.execSQL("ALTER TABLE `Hobby` ADD COLUMN `icon` TEXT NOT NULL DEFAULT ''") }
         }
         private const val PROJECT_V2 = "CREATE TABLE IF NOT EXISTS `Project_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `hobbyId` INTEGER NOT NULL, " +
             "`title` TEXT NOT NULL, `started` INTEGER NOT NULL, `done` INTEGER NOT NULL, `progress` REAL NOT NULL, `photo` TEXT NOT NULL, `note` TEXT NOT NULL, " +

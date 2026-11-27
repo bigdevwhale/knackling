@@ -183,7 +183,7 @@ private fun Jar(b: Book, h: Hobby, onClick: () -> Unit) {
             drawRoundRect(frame, Offset(0f, top), Size(size.width, size.height - top), androidx.compose.ui.geometry.CornerRadius(r), style = Stroke(1.5.dp.toPx()))
             drawRoundRect(if (done) Color(0xFFE2B33C) else frame, Offset(size.width * .15f, 0f), Size(size.width * .7f, top + 2.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
         }, contentAlignment = Alignment.Center) {
-            Pic(toolOf(h.species), 40.dp, Modifier.padding(top = 6.dp))
+            Pic(toolOf(h), 40.dp, Modifier.padding(top = 6.dp))
         }
         Text(if (h.goal > 0) "${b.weekMin(h)}/${h.goal}" else "${b.weekMin(h)}", style = T.tiny.copy(color = if (done) C.ok else C.mute), maxLines = 1)
     }

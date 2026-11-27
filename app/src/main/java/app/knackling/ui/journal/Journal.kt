@@ -61,6 +61,7 @@ import app.knackling.data.Project
 import app.knackling.data.Session
 import app.knackling.domain.Book
 import app.knackling.domain.Grow
+import app.knackling.domain.cap
 import app.knackling.domain.count
 import app.knackling.domain.fmt2
 import app.knackling.domain.fmtDayYear
@@ -144,9 +145,9 @@ private fun Sessions(list: List<Session>, b: Book, nav: Nav) {
     }
 }
 
-/** One session in a list: the apprentice, the hobby, the time, how it went, the note, the photo. */
+/** One session in a list: the apprentice, the hobby, the time ([day]: the date too, where no day heading says it), how it went, its project, the note, the photo. */
 @Composable
-fun SessionRow(s: Session, b: Book, showHobby: Boolean = true, onClick: () -> Unit) {
+fun SessionRow(s: Session, b: Book, showHobby: Boolean = true, day: Boolean = false, showProject: Boolean = true, onClick: () -> Unit) {
     val h = b.byId[s.hobbyId] ?: return
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).card().tap(onClick).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (showHobby) Mini(h.species, 44.dp, frame = frameOf(b.stage(h).coerceAtLeast(0)))
@@ -154,11 +155,12 @@ fun SessionRow(s: Session, b: Book, showHobby: Boolean = true, onClick: () -> Un
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             val head = listOfNotNull(if (showHobby) h.label else null, hours(s.minutes), unitOf(h)?.takeIf { s.amount > 0 }?.of(s.amount)).joinToString(" · ")
             Text(head, style = T.bodyB, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val time = "%d:%02d".format(b.hourOf(s.start), java.time.Instant.ofEpochMilli(s.start).atZone(app.knackling.domain.zone).minute)
             val sub = listOfNotNull(
-                "%d:%02d".format(b.hourOf(s.start), java.time.Instant.ofEpochMilli(s.start).atZone(app.knackling.domain.zone).minute),
+                if (day) relDay(s.day).cap() + ", " + time else time,
                 when (s.flow) { 1 -> tr("тяжело шло", "heavy going"); 2 -> tr("ровно", "fine"); 3 -> tr("в потоке", "in the flow"); else -> null },
                 if (s.idea >= 0) tr("затея", "challenge") else null,
-                b.projects.firstOrNull { it.id == s.projectId }?.title)
+                if (showProject) b.projects.firstOrNull { it.id == s.projectId }?.title else null)
             Text(sub.joinToString(" · "), style = T.tiny, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (s.note.isNotBlank()) Text(s.note, style = T.handS, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
@@ -179,7 +181,7 @@ private fun Showcase(list: List<Session>, b: Book, nav: Nav) {
             Column(Modifier.rotate(tilt).background(Color(0xFFFFFBF2)).padding(4.dp).tap { open = s }, horizontalAlignment = Alignment.CenterHorizontally) {
                 Photo(s.photo, Modifier.fillMaxWidth().aspectRatio(1f))
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                    b.byId[s.hobbyId]?.let { Pic(toolOf(it.species), 14.dp) }
+                    b.byId[s.hobbyId]?.let { Pic(toolOf(it), 14.dp) }
                     Text(" " + app.knackling.domain.fmtDayShort(s.day), style = T.tiny.copy(color = Color(0xFF6B5A44)))
                 }
             }
@@ -215,7 +217,7 @@ private fun Projects(b: Book, nav: Nav) {
     if (choose) Popup({ choose = false }) {
         Text(tr("Для какого хобби?", "For which hobby?"), style = T.h2)
         b.active.forEach { h -> Row(Modifier.fillMaxWidth().tap { choose = false; nav.push(Screen.ProjectEdit(hobbyId = h.id)) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pic(toolOf(h.species), 28.dp); Text(h.label, style = T.bodyB, modifier = Modifier.padding(start = 10.dp)) } }
+            Pic(toolOf(h), 28.dp); Text(h.label, style = T.bodyB, modifier = Modifier.padding(start = 10.dp)) } }
     }
 }
 
@@ -225,7 +227,7 @@ fun ProjectRow(p: Project, b: Book, onClick: () -> Unit) {
     val h = b.byId[p.hobbyId] ?: return
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).card().tap(onClick).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (p.photo.isNotEmpty()) Photo(p.photo, Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)), 200)
-        else Box(Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).background(colorOf(h).copy(alpha = .18f)), contentAlignment = Alignment.Center) { Pic(toolOf(h.species), 40.dp) }
+        else Box(Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)).background(colorOf(h).copy(alpha = .18f)), contentAlignment = Alignment.Center) { Pic(toolOf(h), 40.dp) }
         Column(Modifier.weight(1f).padding(start = 10.dp)) {
             Text(p.title, style = T.bodyB, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (p.planned && p.done == 0L) Text(h.label + tr(" · в планах с ", " · planned since ") + fmtDayYear(p.started), style = T.tiny)
@@ -249,14 +251,15 @@ fun ProjectPage(id: Long, b: Book, nav: Nav) {
     val h = b.byId[p.hobbyId] ?: return
     val ss = b.sessions.filter { it.projectId == p.id }
     var finish by remember { mutableStateOf(false) }
+    var reopen by remember { mutableStateOf(false) }
     Page(p.title, { nav.pop() }, action = {
         Box(Modifier.size(44.dp).clip(CircleShape).tap { nav.push(Screen.ProjectEdit(p.id, p.hobbyId)) }, contentAlignment = Alignment.Center) { Icon(Icons.EDIT, C.ink, 21.dp) }
     }) {
         val cover = p.photo.ifEmpty { ss.firstOrNull { it.photo.isNotEmpty() }?.photo ?: "" }
         if (cover.isNotEmpty()) Photo(cover, Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(RoundedCornerShape(12.dp)), 1200)
-        else Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)).background(colorOf(h).copy(alpha = .15f)), contentAlignment = Alignment.Center) { Pic(toolOf(h.species), 110.dp) }
+        else Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp)).background(colorOf(h).copy(alpha = .15f)), contentAlignment = Alignment.Center) { Pic(toolOf(h), 110.dp) }
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pic(toolOf(h.species), 22.dp)
+            Pic(toolOf(h), 22.dp)
             Text(" " + h.label + (if (p.planned && p.done == 0L) tr(" · в планах с ", " · planned since ") else tr(" · начат ", " · started ")) + fmtDayYear(p.started), style = T.small)
         }
         if (p.done > 0) Text(tr("Закончен ${fmtDayYear(p.done)}", "Finished ${fmtDayYear(p.done)}"), style = T.bodyB.copy(color = C.ok))
@@ -274,22 +277,40 @@ fun ProjectPage(id: Long, b: Book, nav: Nav) {
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Ghost(tr("Записать занятие", "Log a session"), Modifier.weight(1f), small = true) { nav.push(Screen.Log(h.id)) }
-                Btn(tr("Готово!", "Finished!"), Modifier.weight(1f), color = C.ok) { finish = true }
+                Btn(tr("Закончено!", "Finished!"), Modifier.weight(1f), color = C.ok) { finish = true }
             }
-        } else Ghost(tr("Открытка", "Postcard"), Modifier.fillMaxWidth().padding(top = 14.dp), small = true) { nav.share = "project:${p.id}" }
+        } else Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Ghost(tr("Открытка", "Postcard"), Modifier.weight(1f), small = true) { nav.share = "project:${p.id}" }
+            Ghost(tr("Вернуть в работу", "Back to work"), Modifier.weight(1f), small = true) { reopen = true }
+        }
         if (ss.isNotEmpty()) {
             Text(tr("ЗАНЯТИЯ", "SESSIONS"), style = T.sec, modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
-            ss.forEach { s -> SessionRow(s, b, showHobby = false) { nav.push(Screen.Log(h.id, sessionId = s.id)) } }
+            ss.forEach { s -> SessionRow(s, b, showHobby = false, day = true, showProject = false) { nav.push(Screen.Log(h.id, sessionId = s.id)) } }
         }
     }
     if (finish) Popup({ finish = false }) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Creature(h.species, frameOf(b.stage(h).coerceAtLeast(2), cheer = true), 150.dp, shiny = h.shiny)
-            Text(tr("Работа закончена!", "The work is finished!"), style = T.h2, textAlign = TextAlign.Center)
-            Text(tr("+${Grow.PROJECT} опыта для ${h.name} и 10 искр", "+${Grow.PROJECT} experience for ${h.name} and 10 sparks"), style = T.body, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
-            Btn(tr("Повесить на витрину", "Hang it in the showcase"), Modifier.fillMaxWidth()) {
-                finish = false; c.write { saveProject(p.copy(done = clock(), progress = 100.0)) }; nav.share = "project:${p.id}"
+            Text(tr("Работа закончена?", "Is the work finished?"), style = T.h2, textAlign = TextAlign.Center)
+            Text(tr("«${p.title}» переедет в готовые, а ${h.name} получит +${Grow.PROJECT} опыта и 10 искр. Передумаешь – проект можно вернуть в работу.",
+                "«${p.title}» moves to the finished ones, and ${h.name} gets +${Grow.PROJECT} experience and 10 sparks. Changed your mind? It can go back to work."),
+                style = T.body, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Ghost(tr("Ещё нет", "Not yet"), Modifier.weight(1f)) { finish = false }
+                Btn(tr("Да", "Yes"), Modifier.weight(1f), color = C.ok) {
+                    // the progress stays as it was: a finished project shows a tick, and one brought back to work goes on from there
+                    finish = false; c.write { saveProject(p.copy(done = clock())) }; nav.share = "project:${p.id}"
+                }
             }
+        }
+    }
+    if (reopen) Popup({ reopen = false }) {
+        Text(tr("Вернуть в работу?", "Back to work?"), style = T.h2)
+        Text(tr("Проект снова будет в работе, а опыт и искры за готовую работу уйдут, пока не закончишь её ещё раз.",
+            "The project is in the making again; the experience and sparks for finishing it go until you finish it once more."), style = T.body, modifier = Modifier.padding(vertical = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Ghost(tr("Нет", "No"), Modifier.weight(1f)) { reopen = false }
+            Btn(tr("Вернуть", "Bring back"), Modifier.weight(1f)) { reopen = false; c.write { saveProject(p.copy(done = 0)) } }
         }
     }
 }
@@ -314,7 +335,7 @@ fun ProjectEditPage(scr: Screen.ProjectEdit, b: Book, nav: Nav) {
     val cam = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> if (ok && shot != null) Photos.take(ctx, shot.second)?.let { photo = it } }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? -> uri?.let { u -> Photos.take(ctx, u)?.let { photo = it } } }
     Page(if (old == null) tr("Новый проект", "New project") else tr("Проект", "Project"), { nav.pop() }) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Pic(toolOf(h.species), 26.dp); Text(" " + h.label, style = T.bodyB) }
+        Row(verticalAlignment = Alignment.CenterVertically) { Pic(toolOf(h), 26.dp); Text(" " + h.label, style = T.bodyB) }
         Text(tr("НАЗВАНИЕ", "TITLE"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
         Field(title, { title = it.take(50) }, tr("Шарф для мамы, «Yesterday», «Мастер и Маргарита»…", "A scarf for mum, «Yesterday», a novel…"))
         Text(tr("ОБЛОЖКА", "COVER"), style = T.sec, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))

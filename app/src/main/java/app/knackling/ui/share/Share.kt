@@ -176,7 +176,7 @@ class Painter(private val ctx: Context, private val b: Book) {
         c.pic("pet_${h.species}_${frameOf(st, cheer = true)}", W / 2f, 790f, 600f * (if (st <= 0) .7f else if (st == 1) .85f else 1f))
         c.text(h.name, W / 2f, 890f, 92f, ink, hand, Paint.Align.CENTER)
         c.text(Grow.name(st).uppercase(), W / 2f, 950f, 38f, red, bold, Paint.Align.CENTER)
-        c.pic(toolOf(h.species), W / 2f - 160f, 1010f, 56f)
+        c.pic(toolOf(h), W / 2f - 160f, 1010f, 56f)
         c.text(h.label, W / 2f - 120f, 1000f, 42f, ink, bold)
         val ss = b.of[h.id].orEmpty()
         val facts = listOf(hours(ss.sumOf { it.minutes }) to tr("вместе", "together"), count(ss.size, "занятие", "занятия", "занятий", "session", "sessions") to "",
@@ -198,7 +198,7 @@ class Painter(private val ctx: Context, private val b: Book) {
         c.restore()
         c.drawCircle(W / 2f, 140f, 18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = red })
         h?.let { c.pic("pet_${it.species}_${frameOf(b.stage(it).coerceAtLeast(0), cheer = true)}", W - 190f, 1130f, 290f) }
-        c.pic(toolOf(h?.species ?: ""), 140f, 1050f, 60f)
+        c.pic((h?.let { toolOf(it) } ?: "tool_"), 140f, 1050f, 60f)
         c.text(h?.label ?: "", 186f, 1040f, 46f, ink, bold)
         c.text(hours(s.minutes) + (if (s.flow == 3) tr(" · в потоке", " · in the flow") else ""), 110f, 1100f, 36f, mute, body)
         if (s.note.isNotBlank()) c.block(s.note, 110f, 1120f, 700, 40f, ink, hand, max = 2)
@@ -215,7 +215,7 @@ class Painter(private val ctx: Context, private val b: Book) {
         // a gilt frame around the work
         c.drawRect(RectF(r.left - 26, r.top - 26, r.right + 26, r.bottom + 26), Paint().apply { color = gold })
         c.drawRect(RectF(r.left - 12, r.top - 12, r.right + 12, r.bottom + 12), Paint().apply { color = 0xFF8A5A1C.toInt() })
-        if (cover.isNotEmpty()) c.photo(cover, r) else { c.drawRect(r, Paint().apply { color = (col(h) and 0x00FFFFFF) or 0x33000000 }); c.pic(toolOf(h?.species ?: ""), W / 2f, r.top + 80f, 400f, top = true) }
+        if (cover.isNotEmpty()) c.photo(cover, r) else { c.drawRect(r, Paint().apply { color = (col(h) and 0x00FFFFFF) or 0x33000000 }); c.pic((h?.let { toolOf(it) } ?: "tool_"), W / 2f, r.top + 80f, 400f, top = true) }
         h?.let { c.pic("pet_${it.species}_4", W - 170f, 1180f, 280f) }
         val facts = listOf(hours(ss.sumOf { it.minutes }) to tr("вложено", "put in"), count(ss.size, "занятие", "занятия", "занятий", "session", "sessions") to "",
             count(((if (p.done > 0) p.done else b.today) - p.started + 1).toInt(), "день", "дня", "дней", "day", "days") to tr("от начала", "from the start"))

@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import app.knackling.BuildConfig
+import app.knackling.data.Hobby
+import app.knackling.domain.Catalog
 import app.knackling.domain.Kinds
 import app.knackling.domain.Mood
 import kotlin.math.PI
@@ -181,8 +183,16 @@ fun Pic(name: String, size: Dp, modifier: Modifier = Modifier, alpha: Float = 1f
     }
 }
 
-/** The tool picture of a hobby: its own for a preset one, the gear for an own one. */
+/** The tool picture of a species: its own for a preset hobby, the gear for a free apprentice. */
 fun toolOf(species: String) = if (species.startsWith("own_")) "ic_gear" else "tool_$species"
+
+/** The tool picture of a hobby: an own one shows the picture the user chose for it. */
+fun toolOf(h: Hobby) = if (h.own && h.icon in OWN_ICONS) h.icon else toolOf(h.species)
+
+/** What an own hobby can show instead of the gear: things from the workshop, then the tools of the catalogue. */
+val OWN_ICONS: List<String> = listOf("ic_gear", "ic_bulb", "ic_heart", "ic_spark", "ic_paw", "ic_pencil", "ic_scroll", "ic_chest", "ic_house", "ic_bell",
+    "ic_stopwatch", "ic_postcard", "decor_plant", "decor_yarn", "decor_wheel", "decor_globe", "decor_gramophone", "decor_kettle", "decor_books", "decor_easel",
+    "decor_clock", "decor_lamp", "decor_fish", "decor_mannequin", "decor_fireflies", "decor_armchair", "decor_cattree") + Catalog.kinds.map { "tool_${it.id}" }
 
 /** The egg of a species: by its catalogue group, the golden one for the free apprentices. */
 fun eggOf(species: String): String {

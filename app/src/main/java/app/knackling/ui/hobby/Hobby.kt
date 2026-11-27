@@ -121,7 +121,7 @@ fun HobbyPage(id: Long, tab0: Int, b: Book, nav: Nav) {
             else -> {
                 val list = b.of[h.id].orEmpty()
                 if (list.isEmpty()) Text(tr("Пока ни одного занятия.", "No sessions yet."), style = T.small)
-                list.take(60).forEach { s -> SessionRow(s, b, showHobby = false) { nav.push(Screen.Log(h.id, sessionId = s.id)) } }
+                list.take(60).forEach { s -> SessionRow(s, b, showHobby = false, day = true) { nav.push(Screen.Log(h.id, sessionId = s.id)) } }
             }
         }
         Spacer(Modifier.height(16.dp))

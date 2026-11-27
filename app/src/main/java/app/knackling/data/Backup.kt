@@ -26,7 +26,7 @@ class Backup(val hobbies: List<Hobby>, val sessions: List<Session>, val projects
         put("format", FORMAT); put("version", VERSION); put("made", made)
         put("hobbies", JSONArray(hobbies.map { h -> JSONObject().apply {
             put("id", h.id); put("species", h.species); put("title", h.title); put("name", h.name); put("since", h.since); put("goal", h.goal)
-            put("unit", h.unit); put("order", h.order); put("archived", h.archived); put("shiny", h.shiny); put("variant", h.variant) } }))
+            put("unit", h.unit); put("order", h.order); put("archived", h.archived); put("shiny", h.shiny); put("variant", h.variant); put("icon", h.icon) } }))
         put("sessions", JSONArray(sessions.map { s -> JSONObject().apply {
             put("hobbyId", s.hobbyId); put("start", s.start); put("day", s.day); put("minutes", s.minutes); put("amount", s.amount); put("flow", s.flow)
             put("note", s.note); put("photo", s.photo); put("projectId", s.projectId); put("idea", s.idea) } }))
@@ -54,7 +54,7 @@ class Backup(val hobbies: List<Hobby>, val sessions: List<Session>, val projects
                 val hobbies = rows("hobbies").map { o ->
                     Hobby(id = o.getLong("id"), species = o.getString("species"), title = o.optString("title"), name = o.getString("name"), since = o.getLong("since"),
                         goal = o.optInt("goal", 120).coerceIn(0, 7 * 24 * 60), unit = o.optString("unit"), order = o.optInt("order"),
-                        archived = o.optBoolean("archived"), shiny = o.optBoolean("shiny"), variant = o.optString("variant"))
+                        archived = o.optBoolean("archived"), shiny = o.optBoolean("shiny"), variant = o.optString("variant"), icon = o.optString("icon").take(40))
                 }
                 val ids = hobbies.map { it.id }.toSet()
                 if (ids.size != hobbies.size || ids.any { it <= 0 }) throw BadBackup()

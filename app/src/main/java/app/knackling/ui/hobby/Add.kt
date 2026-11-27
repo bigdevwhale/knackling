@@ -2,6 +2,7 @@ package app.knackling.ui.hobby
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +43,7 @@ import app.knackling.domain.tr
 import app.knackling.ui.Nav
 import app.knackling.ui.Screen
 import app.knackling.ui.art.Creature
+import app.knackling.ui.art.OWN_ICONS
 import app.knackling.ui.art.Pic
 import app.knackling.ui.art.eggOf
 import app.knackling.ui.art.toolOf
@@ -127,6 +130,7 @@ fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, taken: Set<Str
     var unit by rememberSaveable(species) { mutableStateOf("") }
     var goal by rememberSaveable(species) { mutableIntStateOf(120) }
     var variant by rememberSaveable(species) { mutableStateOf(k?.variants?.firstOrNull()?.id ?: "") }
+    var icon by rememberSaveable(species) { mutableStateOf("ic_gear") }
     val label = Hobby(species = species, title = title.trim(), name = "", since = 0, variant = variant).label
     val again = k != null && taken.isNotEmpty()
     Sheet(onDismiss) {
@@ -140,6 +144,8 @@ fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, taken: Set<Str
         if (k == null) {
             Lbl(tr("Что за хобби", "What hobby"))
             Field(title, { title = it.take(40) }, tr("например, Макраме", "e.g. Macramé"))
+            Lbl(tr("Значок", "Icon"))
+            IconPicker(icon) { icon = it }
             Lbl(tr("Что считать, кроме минут (необязательно)", "What to count besides minutes (optional)"))
             Field(unit, { unit = it.take(20) }, tr("например, узлов", "e.g. knots"))
         } else {
@@ -160,11 +166,24 @@ fun AdoptSheet(species: String, nav: Nav?, onDismiss: () -> Unit, taken: Set<Str
         Spacer(Modifier.height(18.dp))
         Btn(tr("Взять яйцо", "Take the egg"), Modifier.fillMaxWidth(), enabled = if (k == null) title.isNotBlank() else label !in taken) {
             val h = Hobby(species = species, title = title.trim(), name = name.trim().ifBlank { Kinds.petName(species) }, since = c.clock(), goal = goal,
-                unit = if (k == null) (if (unit.isBlank()) "" else ":" + unit.trim()) else "", variant = variant)
+                unit = if (k == null) (if (unit.isBlank()) "" else ":" + unit.trim()) else "", variant = variant,
+                icon = if (k == null && icon != "ic_gear") icon else "")
             c.write { val id = saveHobby(h); say(tr("${h.name} в мастерской!", "${h.name} moved in!")); if (nav != null) kotlinx.coroutines.delay(150) ; nav?.push(Screen.HobbyInfo(id)) }
             onDone()
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** An own hobby's picture: a strip of them to scroll, the chosen one framed. */
+@Composable
+private fun IconPicker(chosen: String, onPick: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        OWN_ICONS.forEach { ic ->
+            val on = ic == chosen
+            Box(Modifier.size(50.dp).clip(RoundedCornerShape(10.dp)).background(if (on) C.card2 else C.card).border(if (on) 2.dp else 1.dp, if (on) C.acc else C.line, RoundedCornerShape(10.dp))
+                .tap { onPick(ic) }, contentAlignment = Alignment.Center) { Pic(ic, 34.dp) }
+        }
     }
 }
 
@@ -182,6 +201,7 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
     var goal by rememberSaveable { mutableIntStateOf(h.goal) }
     var unit by rememberSaveable { mutableStateOf(if (h.unit.startsWith(":")) h.unit.drop(1) else "") }
     var variant by rememberSaveable { mutableStateOf(h.variant) }
+    var icon by rememberSaveable { mutableStateOf(h.icon.takeIf { it in OWN_ICONS } ?: "ic_gear") }
     var countIt by rememberSaveable { mutableStateOf(h.unit != "-") }
     var del by remember { mutableStateOf(false) }
     val onStage = b.s.stage.contains(h.id)
@@ -191,6 +211,8 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
         if (h.own) {
             Lbl(tr("Хобби", "Hobby"))
             Field(title, { title = it.take(40) }, tr("Название", "Name"))
+            Lbl(tr("Значок", "Icon"))
+            IconPicker(icon) { icon = it }
             Lbl(tr("Что считать, кроме минут", "What to count besides minutes"))
             Field(unit, { unit = it.take(20) }, tr("например, узлов", "e.g. knots"))
         } else Kinds.of(h.species)?.let { k ->
@@ -220,6 +242,7 @@ fun EditHobbyPage(id: Long, b: Book, nav: Nav) {
         Spacer(Modifier.height(18.dp))
         Btn(tr("Сохранить", "Save"), Modifier.fillMaxWidth()) {
             c.write { saveHobby(h.copy(name = name.trim().ifBlank { h.name }, title = if (h.own) title.trim().ifBlank { h.title } else title.trim(), goal = goal, variant = variant,
+                icon = if (h.own && icon != "ic_gear") icon else "",
                 unit = if (h.own) (if (unit.isBlank()) "" else ":" + unit.trim()) else if (countIt) "" else "-")) }
             nav.pop()
         }

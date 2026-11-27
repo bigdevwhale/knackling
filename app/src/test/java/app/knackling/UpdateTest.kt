@@ -11,6 +11,8 @@ import app.knackling.domain.Book
 import app.knackling.domain.Catalog
 import app.knackling.domain.Kinds
 import app.knackling.domain.Quests
+import app.knackling.ui.art.OWN_ICONS
+import app.knackling.ui.art.toolOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,6 +45,7 @@ class UpdateTest {
         val (h, p) = runBlocking { db.dao().hobbyList() to db.dao().projectList() }
         db.close()
         assertEquals("", h.single().variant)
+        assertEquals("", h.single().icon)
         assertEquals("Вышивка", h.single().label)
         val pr = p.single()
         assertEquals(Project(id = 5, hobbyId = 1, title = "Маки", started = day, progress = 35.0, photo = "p.jpg", note = "мулине"), pr)
@@ -109,5 +112,17 @@ class UpdateTest {
             "projects":[{"id":1,"hobbyId":3,"title":"Книга","started":$day,"progress":40}]}"""
         val o = Backup.of(old)
         assertEquals("", o.hobbies[0].variant); assertEquals(40.0, o.projects[0].pct, 0.0); assertFalse(o.projects[0].planned)
+    }
+
+    /** 1.2: own hobbies with pictures of their own, not all the same gear (#8). */
+    @Test fun ownHobbiesShowTheirIcons() {
+        val mine = Hobby(id = 1, species = "own_ember", title = "Макраме", name = "Рыжик", since = day, icon = "decor_yarn")
+        assertEquals("decor_yarn", toolOf(mine))
+        assertEquals("ic_gear", toolOf(mine.copy(icon = "")))
+        assertEquals("ic_gear", toolOf(mine.copy(icon = "nothing_like_it")))
+        assertEquals("tool_guitar", toolOf(Hobby(id = 2, species = "guitar", name = "Струнка", since = day, icon = "decor_yarn")))
+        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+        assertTrue(OWN_ICONS.all { ctx.resources.getIdentifier(it, "drawable", ctx.packageName) != 0 })
+        assertEquals(listOf(mine), Backup.of(Backup(listOf(mine), emptyList(), emptyList(), Settings(onboarded = true)).json().toString()).hobbies)
     }
 }

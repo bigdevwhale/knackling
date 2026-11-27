@@ -142,7 +142,7 @@ fun LivePage(b: Book, nav: Nav) {
     val st = b.stage(h)
     Page(tr("Занятие", "Session"), { nav.pop() }, scroll = false) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) { Pic(toolOf(h.species), 26.dp); Text(" " + h.label, style = T.h3) }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) { Pic(toolOf(h), 26.dp); Text(" " + h.label, style = T.h3) }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(260.dp).clip(CircleShape).background(C.card2), contentAlignment = Alignment.Center) {
                     if (st < 0) Pic(eggOf(h.species), 150.dp)

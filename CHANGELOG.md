@@ -6,6 +6,18 @@ line "<!-- tg", then 2-4 short lines in Russian for users (what is new, what is 
 then close it like any HTML comment. The release notes carry it, and the chat bot posts those lines.
 -->
 
+## [1.2.0] - 2026-11-27
+
+- A hobby's records and a project's sessions show the date of each session, not just the time (#7).
+- Own hobbies can have an icon of their own instead of the same gear: picked when the hobby is taken or later in its settings (#8).
+- The button that finishes a project reads «Закончено!» and asks first; a finished project can go back to work, its progress as it was (#9).
+
+<!-- tg
+Новое: у своих хобби можно выбрать значок, чтобы они не были одинаковыми шестерёнками.
+В записях о занятиях теперь видна дата.
+Кнопка «Закончено!» сначала спрашивает, а готовый проект можно вернуть в работу.
+-->
+
 ## [1.1.0] - 2026-11-25
 
 - The tasks and challenges sheets can always be closed: a cross in the corner, and a strip of the screen above stays free to tap (#6).

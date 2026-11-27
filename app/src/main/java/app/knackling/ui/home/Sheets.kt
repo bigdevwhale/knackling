@@ -149,7 +149,7 @@ fun NewsSheet(n: News, b: Book, nav: Nav) {
                         Creature(n.h.species, frameOf(n.stage, cheer = true), 180.dp, shiny = n.h.shiny)
                     }
                     Text("${n.h.name} – ${Grow.name(n.stage).lowercase()}", style = T.h2, textAlign = TextAlign.Center)
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) { Pic(toolOf(n.h.species), 22.dp); Text(" " + n.h.label, style = T.smallB) }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) { Pic(toolOf(n.h), 22.dp); Text(" " + n.h.label, style = T.smallB) }
                     Text(Grow.about(n.stage), style = T.body.copy(textAlign = TextAlign.Center), modifier = Modifier.padding(top = 8.dp))
                     Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Ghost(tr("Открытка", "Postcard"), Modifier.weight(1f)) { done(); nav.share = "pet:${n.h.id}" }
